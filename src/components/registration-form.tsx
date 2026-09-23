@@ -6,6 +6,13 @@ import { CheckCircle2 } from "lucide-react";
 import { City, District, getSupabase } from "@/lib/supabase";
 
 type Profile = { fullName: string; phone: string; collegeName: string; course: string; yearOfStudy: string; district: string; city: string; membershipId: string };
+type ProfileQuery = {
+  full_name: string;
+  phone: string;
+  cities: { name: string } | { name: string }[] | null;
+  districts: { name: string } | { name: string }[] | null;
+  members: { college_name: string; course: string; year_of_study: string; membership_id: string } | { college_name: string; course: string; year_of_study: string; membership_id: string }[] | null;
+};
 const initial = { fullName: "", phone: "", email: "", password: "", confirmPassword: "", collegeName: "", course: "", yearOfStudy: "", districtId: "", cityId: "" };
 
 async function loadProfile(): Promise<Profile | null> {
@@ -14,17 +21,18 @@ async function loadProfile(): Promise<Profile | null> {
   if (!user) return null;
   const { data, error } = await supabase.from("profiles").select("full_name,phone,city_id,district_id,members(college_name,course,year_of_study,membership_id),cities!profiles_city_id_fkey(name),districts!profiles_district_id_fkey(name)").eq("id", user.id).maybeSingle();
   if (error) throw error;
-  const member = Array.isArray(data?.members) ? data.members[0] : data?.members;
-  if (!data || !member) return null;
+  const profileData = data as unknown as ProfileQuery | null;
+  const member = Array.isArray(profileData?.members) ? profileData.members[0] : profileData?.members;
+  if (!profileData || !member) return null;
   return {
-    fullName: data.full_name,
-    phone: data.phone,
+    fullName: profileData.full_name,
+    phone: profileData.phone,
     collegeName: member.college_name,
     course: member.course,
     yearOfStudy: member.year_of_study,
     membershipId: member.membership_id,
-    city: Array.isArray(data.cities) ? data.cities[0]?.name : data.cities?.name,
-    district: Array.isArray(data.districts) ? data.districts[0]?.name : data.districts?.name,
+    city: Array.isArray(profileData.cities) ? profileData.cities[0]?.name ?? "" : profileData.cities?.name ?? "",
+    district: Array.isArray(profileData.districts) ? profileData.districts[0]?.name ?? "" : profileData.districts?.name ?? "",
   };
 }
 
