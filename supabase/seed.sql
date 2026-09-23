@@ -1,0 +1,4 @@
+insert into public.districts (id, name) values ('00000000-0000-0000-0000-000000000001','Mumbai Suburban'),('00000000-0000-0000-0000-000000000002','Pune'),('00000000-0000-0000-0000-000000000003','Nagpur'),('00000000-0000-0000-0000-000000000004','Chhatrapati Sambhajinagar') on conflict do nothing;
+insert into public.cities (district_id, name) values ('00000000-0000-0000-0000-000000000001','Mumbai'),('00000000-0000-0000-0000-000000000002','Pune'),('00000000-0000-0000-0000-000000000003','Nagpur'),('00000000-0000-0000-0000-000000000004','Chhatrapati Sambhajinagar') on conflict do nothing;
+-- Create the State President in Supabase Auth first, then promote them:
+-- update public.profiles set role = 'admin' where phone = '+919876543210';

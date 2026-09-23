@@ -1,0 +1,2 @@
+import { AdminShell } from "@/components/admin-shell"; import { TicketTable } from "@/components/admin-data";
+export default function AdminTickets() { return <AdminShell title="All tickets"><TicketTable /></AdminShell>; }

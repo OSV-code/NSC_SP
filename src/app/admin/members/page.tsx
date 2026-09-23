@@ -1,0 +1,2 @@
+import { AdminShell } from "@/components/admin-shell"; import { MemberTable } from "@/components/admin-data";
+export default function AdminMembers() { return <AdminShell title="Registered members"><MemberTable /></AdminShell>; }

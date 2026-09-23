@@ -1,0 +1,2 @@
+import { AdminShell } from "@/components/admin-shell"; import { Overview } from "@/components/admin-data";
+export default function AdminDashboard() { return <AdminShell title="Overview"><Overview /></AdminShell>; }

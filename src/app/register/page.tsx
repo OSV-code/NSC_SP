@@ -1,0 +1,3 @@
+import { PublicHeader } from "@/components/public-header";
+import { RegistrationForm } from "@/components/registration-form";
+export default function RegisterPage() { return <div className="min-h-screen bg-[#f7f5ef]"><PublicHeader /><main className="mx-auto max-w-2xl px-4 py-12 sm:px-6"><p className="text-sm font-bold uppercase tracking-[0.14em] text-[#c85d37]">Student membership</p><h1 className="mt-2 text-3xl font-bold text-[#10382e]">Your profile</h1><p className="mt-2 text-[#64736b]">Register once and this browser will remember you the next time you visit.</p><section className="mt-8 rounded-md border border-[#dcdcd3] bg-[#fffdf8] p-5 shadow-sm sm:p-7"><RegistrationForm /></section></main></div>; }

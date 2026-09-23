@@ -1,0 +1,2 @@
+import { PublicHeader } from "@/components/public-header"; import { TrackForm } from "@/components/track-form";
+export default function TrackPage() { return <div className="min-h-screen bg-[#f7f5ef]"><PublicHeader /><main className="mx-auto max-w-xl px-4 py-12"><p className="text-sm font-bold uppercase tracking-[0.14em] text-[#c85d37]">Ticket tracker</p><h1 className="mt-2 text-3xl font-bold text-[#10382e]">Check your ticket</h1><section className="mt-7 rounded-md border border-[#dcdcd3] bg-[#fffdf8] p-5 shadow-sm"><TrackForm /></section></main></div>; }
