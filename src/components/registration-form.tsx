@@ -17,11 +17,25 @@ type ProfileQuery = {
 const initial = { fullName: "", phone: "", email: "", password: "", confirmPassword: "", collegeName: "", course: "", yearOfStudy: "", districtId: "", cityId: "" };
 
 function errorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && error && "message" in error && typeof (error as { message: unknown }).message === "string") {
-    return (error as { message: string }).message;
+  const raw = error instanceof Error ? error.message
+    : typeof error === "object" && error && "message" in error && typeof (error as { message: unknown }).message === "string" ? (error as { message: string }).message
+    : null;
+  if (raw && /profiles_phone_key/i.test(raw)) {
+    return "This mobile number is already registered to another account. Please use a different number.";
   }
+  if (raw) return raw;
+  const details = typeof error === "object" && error && "details" in error && typeof (error as { details: unknown }).details === "string" ? (error as { details: string }).details : null;
+  const code = typeof error === "object" && error && "code" in error ? String((error as { code: unknown }).code) : null;
+  if (details || code) return `${fallback} (${[code, details].filter(Boolean).join(": ")})`;
   return fallback;
+}
+
+function logError(label: string, error: unknown) {
+  if (error && typeof error === "object") {
+    console.error(label, JSON.stringify(error, Object.getOwnPropertyNames(error)));
+  } else {
+    console.error(label, error);
+  }
 }
 
 async function loadProfile(): Promise<Profile | null> {
@@ -87,7 +101,7 @@ export function RegistrationForm() {
       setProfile(found);
       router.push("/report-issue");
     } catch (error) {
-      console.error(error);
+      logError("login failed", error);
       setLoginMessage(errorMessage(error, "Login failed."));
     } finally {
       setBusy(false);
@@ -131,7 +145,7 @@ export function RegistrationForm() {
       const district = districts.find((d) => d.id === form.districtId)?.name ?? "";
       setProfile({ fullName: form.fullName, phone: form.phone, collegeName: form.collegeName, course: form.course, yearOfStudy: form.yearOfStudy, membershipId: data.membership_id, city, district });
     } catch (error) {
-      console.error(error);
+      logError("registration submit failed", error);
       setMessage(errorMessage(error, "Registration could not be completed."));
     } finally {
       setBusy(false);
