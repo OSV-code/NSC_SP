@@ -16,7 +16,7 @@ export function PublicHeader() {
     const supabase = getSupabase();
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
-      supabase.from("profiles").select("full_name").eq("id", user.id).single().then(({ data }) => {
+      supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle().then(({ data }) => {
         if (data?.full_name) setFullName(data.full_name);
       });
     });
