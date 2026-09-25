@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { City, District, getSupabase } from "@/lib/supabase";
 
@@ -57,6 +58,7 @@ export function RegistrationForm() {
   const [busy, setBusy] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [loginMessage, setLoginMessage] = useState("");
+  const router = useRouter();
   const update = (field: keyof typeof initial, value: string) => setForm((current) => ({ ...current, [field]: value }));
 
   useEffect(() => {
@@ -83,6 +85,7 @@ export function RegistrationForm() {
         return;
       }
       setProfile(found);
+      router.push("/report-issue");
     } catch (error) {
       console.error(error);
       setLoginMessage(errorMessage(error, "Login failed."));
@@ -107,11 +110,18 @@ export function RegistrationForm() {
         userId = user.id;
       } else {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email: form.email, password: form.password });
-        if (signUpError) throw signUpError;
-        const user = signUpData.user;
-        if (!user) throw new Error("Registration could not be completed.");
-        if (!signUpData.session) throw new Error("Check your email to confirm your account, then use the \"Log in\" tab.");
-        userId = user.id;
+        if (signUpError) {
+          if (!/already registered|already exists/i.test(signUpError.message)) throw signUpError;
+          // Account exists from an earlier attempt: sign in with the same password instead of failing the flow.
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password });
+          if (signInError) throw new Error("This email is already registered with a different password. Please use the \"Log in\" tab.");
+          userId = signInData.user.id;
+        } else {
+          const user = signUpData.user;
+          if (!user) throw new Error("Registration could not be completed.");
+          if (!signUpData.session) throw new Error("Check your email to confirm your account, then use the \"Log in\" tab.");
+          userId = user.id;
+        }
       }
       const { error: profileError } = await supabase.from("profiles").upsert({ id: userId, full_name: form.fullName, phone: form.phone, city_id: form.cityId, district_id: form.districtId });
       if (profileError) throw profileError;
