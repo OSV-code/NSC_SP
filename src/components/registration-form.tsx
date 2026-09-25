@@ -40,6 +40,7 @@ export function RegistrationForm() {
   const [checked, setChecked] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [completingAccount, setCompletingAccount] = useState(false);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(initial);
   const [districts, setDistricts] = useState<District[]>([]);
@@ -66,7 +67,13 @@ export function RegistrationForm() {
       const { error } = await getSupabase().auth.signInWithPassword({ email: loginForm.email, password: loginForm.password });
       if (error) throw error;
       const found = await loadProfile();
-      if (!found) throw new Error("No profile found for this account yet. Please complete registration.");
+      if (!found) {
+        setForm((current) => ({ ...current, email: loginForm.email }));
+        setCompletingAccount(true);
+        setAuthMode("register");
+        setStep(1);
+        return;
+      }
       setProfile(found);
     } catch (error) {
       setLoginMessage(error instanceof Error ? error.message : "Login failed.");
@@ -77,19 +84,29 @@ export function RegistrationForm() {
 
   async function submit() {
     setMessage("");
-    if (form.password !== form.confirmPassword) return setMessage("Passwords do not match.");
-    if (form.password.length < 6) return setMessage("Password must be at least 6 characters.");
+    if (!completingAccount) {
+      if (form.password !== form.confirmPassword) return setMessage("Passwords do not match.");
+      if (form.password.length < 6) return setMessage("Password must be at least 6 characters.");
+    }
     setBusy(true);
     try {
       const supabase = getSupabase();
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email: form.email, password: form.password });
-      if (signUpError) throw signUpError;
-      const user = signUpData.user;
-      if (!user) throw new Error("Registration could not be completed.");
-      if (!signUpData.session) throw new Error("Check your email to confirm your account, then use the \"Log in\" tab.");
-      const { error: profileError } = await supabase.from("profiles").upsert({ id: user.id, full_name: form.fullName, phone: form.phone, city_id: form.cityId, district_id: form.districtId });
+      let userId: string;
+      if (completingAccount) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Your session expired. Please log in again.");
+        userId = user.id;
+      } else {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email: form.email, password: form.password });
+        if (signUpError) throw signUpError;
+        const user = signUpData.user;
+        if (!user) throw new Error("Registration could not be completed.");
+        if (!signUpData.session) throw new Error("Check your email to confirm your account, then use the \"Log in\" tab.");
+        userId = user.id;
+      }
+      const { error: profileError } = await supabase.from("profiles").upsert({ id: userId, full_name: form.fullName, phone: form.phone, city_id: form.cityId, district_id: form.districtId });
       if (profileError) throw profileError;
-      const { data, error } = await supabase.from("members").upsert({ profile_id: user.id, college_name: form.collegeName, course: form.course, year_of_study: form.yearOfStudy, email: form.email }, { onConflict: "profile_id" }).select("membership_id").single();
+      const { data, error } = await supabase.from("members").upsert({ profile_id: userId, college_name: form.collegeName, course: form.course, year_of_study: form.yearOfStudy, email: form.email }, { onConflict: "profile_id" }).select("membership_id").single();
       if (error) throw error;
       const city = cities.find((c) => c.id === form.cityId)?.name ?? "";
       const district = districts.find((d) => d.id === form.districtId)?.name ?? "";
@@ -130,7 +147,7 @@ export function RegistrationForm() {
   const tabs = (
     <div className="mb-7 flex rounded-md border border-[#dcdcd3] bg-[#f7f5ef] p-1" role="tablist" aria-label="Log in or create a profile">
       <button type="button" role="tab" aria-selected={authMode === "login"} onClick={() => setAuthMode("login")} className={`flex-1 rounded-[5px] px-4 py-2 text-sm font-bold transition ${authMode === "login" ? "bg-[#174c3e] text-white shadow-sm" : "text-[#405249]"}`}>Log in</button>
-      <button type="button" role="tab" aria-selected={authMode === "register"} onClick={() => setAuthMode("register")} className={`flex-1 rounded-[5px] px-4 py-2 text-sm font-bold transition ${authMode === "register" ? "bg-[#174c3e] text-white shadow-sm" : "text-[#405249]"}`}>Create profile</button>
+      <button type="button" role="tab" aria-selected={authMode === "register"} onClick={() => { setCompletingAccount(false); setAuthMode("register"); }} className={`flex-1 rounded-[5px] px-4 py-2 text-sm font-bold transition ${authMode === "register" ? "bg-[#174c3e] text-white shadow-sm" : "text-[#405249]"}`}>Create profile</button>
     </div>
   );
 
@@ -144,7 +161,7 @@ export function RegistrationForm() {
           <button disabled={busy} className="rounded-md bg-[#174c3e] px-5 py-2.5 font-bold text-white disabled:opacity-50">{busy ? "Signing in..." : "Log in"}</button>
           {loginMessage && <p className="text-sm text-red-700">{loginMessage}</p>}
         </form>
-        <p className="mt-5 text-sm text-[#64736b]">Don&apos;t have a profile yet? <button type="button" onClick={() => setAuthMode("register")} className="font-bold text-[#174c3e] underline">Create one</button></p>
+        <p className="mt-5 text-sm text-[#64736b]">Don&apos;t have a profile yet? <button type="button" onClick={() => { setCompletingAccount(false); setAuthMode("register"); }} className="font-bold text-[#174c3e] underline">Create one</button></p>
       </div>
     );
   }
@@ -155,14 +172,19 @@ export function RegistrationForm() {
       <div className="mb-7 flex gap-1">{[1, 2, 3].map((item) => <span key={item} className={`h-1 flex-1 rounded-full ${item <= step ? "bg-[#174c3e]" : "bg-[#dcdcd3]"}`} />)}</div>
       {step === 1 && (
         <div className="space-y-4">
+          {completingAccount && <p className="rounded-md bg-[#f7f5ef] p-3 text-sm text-[#405249]">You&apos;re signed in as {form.email}. Finish your profile details below.</p>}
           <label className="block text-sm font-bold">Full name<input required value={form.fullName} onChange={(event) => update("fullName", event.target.value)} className="mt-1.5 w-full rounded-md border border-[#c4ccc5] bg-white px-3 py-2.5" /></label>
           <label className="block text-sm font-bold">Mobile number<input required type="tel" value={form.phone} onChange={(event) => update("phone", event.target.value)} placeholder="+91 98765 43210" className="mt-1.5 w-full rounded-md border border-[#c4ccc5] bg-white px-3 py-2.5" /></label>
-          <label className="block text-sm font-bold">Email<input required type="email" value={form.email} onChange={(event) => update("email", event.target.value)} className="mt-1.5 w-full rounded-md border border-[#c4ccc5] bg-white px-3 py-2.5" /></label>
-          <label className="block text-sm font-bold">Password<input required type="password" value={form.password} onChange={(event) => update("password", event.target.value)} placeholder="At least 6 characters" className="mt-1.5 w-full rounded-md border border-[#c4ccc5] bg-white px-3 py-2.5" /></label>
-          <label className="block text-sm font-bold">Confirm password<input required type="password" value={form.confirmPassword} onChange={(event) => update("confirmPassword", event.target.value)} className="mt-1.5 w-full rounded-md border border-[#c4ccc5] bg-white px-3 py-2.5" /></label>
+          {!completingAccount && (
+            <>
+              <label className="block text-sm font-bold">Email<input required type="email" value={form.email} onChange={(event) => update("email", event.target.value)} className="mt-1.5 w-full rounded-md border border-[#c4ccc5] bg-white px-3 py-2.5" /></label>
+              <label className="block text-sm font-bold">Password<input required type="password" value={form.password} onChange={(event) => update("password", event.target.value)} placeholder="At least 6 characters" className="mt-1.5 w-full rounded-md border border-[#c4ccc5] bg-white px-3 py-2.5" /></label>
+              <label className="block text-sm font-bold">Confirm password<input required type="password" value={form.confirmPassword} onChange={(event) => update("confirmPassword", event.target.value)} className="mt-1.5 w-full rounded-md border border-[#c4ccc5] bg-white px-3 py-2.5" /></label>
+            </>
+          )}
           <div className="flex items-center gap-4">
-            <button onClick={() => setStep(2)} disabled={!form.fullName || !form.phone || !form.email || !form.password || !form.confirmPassword} className="rounded-md bg-[#174c3e] px-5 py-2.5 font-bold text-white disabled:opacity-50">Continue</button>
-            <button type="button" onClick={() => setAuthMode("login")} className="text-sm font-bold text-[#64736b] underline">Back</button>
+            <button onClick={() => setStep(2)} disabled={!form.fullName || !form.phone || (!completingAccount && (!form.email || !form.password || !form.confirmPassword))} className="rounded-md bg-[#174c3e] px-5 py-2.5 font-bold text-white disabled:opacity-50">Continue</button>
+            <button type="button" onClick={() => { setCompletingAccount(false); setAuthMode("login"); }} className="text-sm font-bold text-[#64736b] underline">Back</button>
           </div>
         </div>
       )}
