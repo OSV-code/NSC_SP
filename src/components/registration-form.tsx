@@ -15,6 +15,14 @@ type ProfileQuery = {
 };
 const initial = { fullName: "", phone: "", email: "", password: "", confirmPassword: "", collegeName: "", course: "", yearOfStudy: "", districtId: "", cityId: "" };
 
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error && "message" in error && typeof (error as { message: unknown }).message === "string") {
+    return (error as { message: string }).message;
+  }
+  return fallback;
+}
+
 async function loadProfile(): Promise<Profile | null> {
   const supabase = getSupabase();
   const { data: { user } } = await supabase.auth.getUser();
@@ -76,7 +84,8 @@ export function RegistrationForm() {
       }
       setProfile(found);
     } catch (error) {
-      setLoginMessage(error instanceof Error ? error.message : "Login failed.");
+      console.error(error);
+      setLoginMessage(errorMessage(error, "Login failed."));
     } finally {
       setBusy(false);
     }
@@ -112,7 +121,8 @@ export function RegistrationForm() {
       const district = districts.find((d) => d.id === form.districtId)?.name ?? "";
       setProfile({ fullName: form.fullName, phone: form.phone, collegeName: form.collegeName, course: form.course, yearOfStudy: form.yearOfStudy, membershipId: data.membership_id, city, district });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Registration could not be completed.");
+      console.error(error);
+      setMessage(errorMessage(error, "Registration could not be completed."));
     } finally {
       setBusy(false);
     }
